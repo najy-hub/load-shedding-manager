@@ -14,7 +14,7 @@
 ## التثبيت
 
 ```bash
-git clone https://github.com/your-username/load-shedding-manager.git
+git clone https://github.com/najy-hub/load-shedding-manager.git
 cd load-shedding-manager
 pip install -r requirements.txt
 python main.py
