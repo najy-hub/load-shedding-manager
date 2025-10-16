@@ -75,152 +75,139 @@ class LoadSheddingManager:
                 monthly_hours={},
                 last_shedding_time=None
             )
-def _initialize_stats(self):
-    """تهيئة الإحصائيات"""
-    for line in self.lines:
-        self.stats[line.id] = LoadSheddingStats(
-            line_id=line.id,
-            total_hours=0.0,
-            monthly_hours={},
-            last_shedding_time=None
+
+    # ========== دوال التقارير الجديدة ==========
+
+    def generate_period_report(self, start_date: date, end_date: date, report_type: ReportType = ReportType.CUSTOM) -> PeriodReport:
+        """إنشاء تقرير لفترة محددة"""
+        
+        # تصفية السجلات ضمن الفترة المطلوبة
+        period_records = [
+            record for record in self.shedding_history
+            if start_date <= record.date <= end_date
+        ]
+        
+        # إحصائيات الخطوط
+        line_stats = {}
+        total_hours = 0
+        total_reduction = 0
+        
+        for line in self.lines:
+            line_records = [r for r in period_records if r.line_id == line.id]
+            line_hours = sum(r.duration_hours for r in line_records)
+            line_reduction = sum(r.load_reduced_mw for r in line_records)
+            
+            line_stats[line.id] = {
+                'line_name': line.name,
+                'group': line.group,
+                'total_hours': round(line_hours, 2),
+                'total_reduction': round(line_reduction, 2),
+                'shedding_count': len(line_records),
+                'average_duration': round(line_hours / len(line_records), 2) if line_records else 0
+            }
+            
+            total_hours += line_hours
+            total_reduction += line_reduction
+        
+        # إحصائيات المجموعات
+        group_stats = {}
+        for group_id in [0, 1]:
+            group_lines = [line for line in self.lines if line.group == group_id]
+            group_hours = sum(line_stats[line.id]['total_hours'] for line in group_lines)
+            group_reduction = sum(line_stats[line.id]['total_reduction'] for line in group_lines)
+            
+            group_stats[group_id] = {
+                'total_hours': round(group_hours, 2),
+                'total_reduction': round(group_reduction, 2),
+                'line_count': len(group_lines),
+                'average_per_line': round(group_hours / len(group_lines), 2) if group_lines else 0
+            }
+        
+        # تفصيل يومي
+        daily_breakdown = {}
+        current_date = start_date
+        while current_date <= end_date:
+            day_records = [r for r in period_records if r.date == current_date]
+            day_hours = sum(r.duration_hours for r in day_records)
+            day_reduction = sum(r.load_reduced_mw for r in day_records)
+            
+            daily_breakdown[current_date] = {
+                'total_hours': round(day_hours, 2),
+                'total_reduction': round(day_reduction, 2),
+                'record_count': len(day_records)
+            }
+            current_date += timedelta(days=1)
+        
+        return PeriodReport(
+            start_date=start_date,
+            end_date=end_date,
+            report_type=report_type,
+            total_hours=round(total_hours, 2),
+            total_reduction=round(total_reduction, 2),
+            line_statistics=line_stats,
+            group_statistics=group_stats,
+            daily_breakdown=daily_breakdown
         )
 
-# ========== دوال التقارير الجديدة ==========
-
-def generate_period_report(self, start_date: date, end_date: date, report_type: ReportType = ReportType.CUSTOM) -> PeriodReport:
-    """إنشاء تقرير لفترة محددة"""
-    
-    # تصفية السجلات ضمن الفترة المطلوبة
-    period_records = [
-        record for record in self.shedding_history
-        if start_date <= record.date <= end_date
-    ]
-    
-    # إحصائيات الخطوط
-    line_stats = {}
-    total_hours = 0
-    total_reduction = 0
-    
-    for line in self.lines:
-        line_records = [r for r in period_records if r.line_id == line.id]
-        line_hours = sum(r.duration_hours for r in line_records)
-        line_reduction = sum(r.load_reduced_mw for r in line_records)
+    def generate_daily_report(self, target_date: date = None) -> PeriodReport:
+        """تقرير يومي"""
+        if target_date is None:
+            target_date = date.today()
         
-        line_stats[line.id] = {
-            'line_name': line.name,
-            'group': line.group,
-            'total_hours': round(line_hours, 2),
-            'total_reduction': round(line_reduction, 2),
-            'shedding_count': len(line_records),
-            'average_duration': round(line_hours / len(line_records), 2) if line_records else 0
+        return self.generate_period_report(target_date, target_date, ReportType.DAILY)
+
+    def generate_weekly_report(self, target_date: date = None) -> PeriodReport:
+        """تقرير أسبوعي"""
+        if target_date is None:
+            target_date = date.today()
+        
+        start_date = target_date - timedelta(days=target_date.weekday())
+        end_date = start_date + timedelta(days=6)
+        
+        return self.generate_period_report(start_date, end_date, ReportType.WEEKLY)
+
+    def generate_monthly_report(self, month: int = None, year: int = None) -> PeriodReport:
+        """تقرير شهري"""
+        if month is None:
+            month = date.today().month
+        if year is None:
+            year = date.today().year
+        
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(year, month + 1, 1) - timedelta(days=1)
+        
+        return self.generate_period_report(start_date, end_date, ReportType.MONTHLY)
+
+    def export_report_to_file(self, report: PeriodReport, filename: str = None):
+        """تصدير التقرير إلى ملف"""
+        if filename is None:
+            filename = f"report_{report.start_date}_{report.end_date}.json"
+        
+        report_data = {
+            'report_info': {
+                'start_date': report.start_date.isoformat(),
+                'end_date': report.end_date.isoformat(),
+                'report_type': report.report_type.value,
+                'total_hours': report.total_hours,
+                'total_reduction': report.total_reduction
+            },
+            'line_statistics': report.line_statistics,
+            'group_statistics': report.group_statistics,
+            'daily_breakdown': {
+                date.isoformat(): data for date, data in report.daily_breakdown.items()
+            }
         }
         
-        total_hours += line_hours
-        total_reduction += line_reduction
-    
-    # إحصائيات المجموعات
-    group_stats = {}
-    for group_id in [0, 1]:
-        group_lines = [line for line in self.lines if line.group == group_id]
-        group_hours = sum(line_stats[line.id]['total_hours'] for line in group_lines)
-        group_reduction = sum(line_stats[line.id]['total_reduction'] for line in group_lines)
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(report_data, f, indent=2, ensure_ascii=False)
         
-        group_stats[group_id] = {
-            'total_hours': round(group_hours, 2),
-            'total_reduction': round(group_reduction, 2),
-            'line_count': len(group_lines),
-            'average_per_line': round(group_hours / len(group_lines), 2) if group_lines else 0
-        }
-    
-    # تفصيل يومي
-    daily_breakdown = {}
-    current_date = start_date
-    while current_date <= end_date:
-        day_records = [r for r in period_records if r.date == current_date]
-        day_hours = sum(r.duration_hours for r in day_records)
-        day_reduction = sum(r.load_reduced_mw for r in day_records)
-        
-        daily_breakdown[current_date] = {
-            'total_hours': round(day_hours, 2),
-            'total_reduction': round(day_reduction, 2),
-            'record_count': len(day_records)
-        }
-        current_date += timedelta(days=1)
-    
-    return PeriodReport(
-        start_date=start_date,
-        end_date=end_date,
-        report_type=report_type,
-        total_hours=round(total_hours, 2),
-        total_reduction=round(total_reduction, 2),
-        line_statistics=line_stats,
-        group_statistics=group_stats,
-        daily_breakdown=daily_breakdown
-    )
+        return filename
 
-def generate_daily_report(self, target_date: date = None) -> PeriodReport:
-    """تقرير يومي"""
-    if target_date is None:
-        target_date = date.today()
-    
-    return self.generate_period_report(target_date, target_date, ReportType.DAILY)
+    # ========== نهاية دوال التقارير ==========
 
-def generate_weekly_report(self, target_date: date = None) -> PeriodReport:
-    """تقرير أسبوعي"""
-    if target_date is None:
-        target_date = date.today()
-    
-    start_date = target_date - timedelta(days=target_date.weekday())
-    end_date = start_date + timedelta(days=6)
-    
-    return self.generate_period_report(start_date, end_date, ReportType.WEEKLY)
-
-def generate_monthly_report(self, month: int = None, year: int = None) -> PeriodReport:
-    """تقرير شهري"""
-    if month is None:
-        month = date.today().month
-    if year is None:
-        year = date.today().year
-    
-    start_date = date(year, month, 1)
-    if month == 12:
-        end_date = date(year + 1, 1, 1) - timedelta(days=1)
-    else:
-        end_date = date(year, month + 1, 1) - timedelta(days=1)
-    
-    return self.generate_period_report(start_date, end_date, ReportType.MONTHLY)
-
-def export_report_to_file(self, report: PeriodReport, filename: str = None):
-    """تصدير التقرير إلى ملف"""
-    if filename is None:
-        filename = f"report_{report.start_date}_{report.end_date}.json"
-    
-    report_data = {
-        'report_info': {
-            'start_date': report.start_date.isoformat(),
-            'end_date': report.end_date.isoformat(),
-            'report_type': report.report_type.value,
-            'total_hours': report.total_hours,
-            'total_reduction': report.total_reduction
-        },
-        'line_statistics': report.line_statistics,
-        'group_statistics': report.group_statistics,
-        'daily_breakdown': {
-            date.isoformat(): data for date, data in report.daily_breakdown.items()
-        }
-    }
-    
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(report_data, f, indent=2, ensure_ascii=False)
-    
-    return filename
-
-# ========== نهاية دوال التقارير ==========
-
-# ثم تأتي الدوال الحالية مثل:
-def get_current_group_schedule(self, target_date: date = None) -> int:
-    """تحديد المجموعة المقرر تخفيفها حسب التاريخ"""
-    # ... الكود الحالي
     def get_current_group_schedule(self, target_date: date = None) -> int:
         """تحديد المجموعة المقرر تخفيفها حسب التاريخ"""
         if target_date is None:
