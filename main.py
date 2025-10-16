@@ -1,10 +1,39 @@
 import json
+import os
+import sys
 from datetime import datetime, date
-from src.core.load_manager import LoadSheddingManager
-from src.models.models import TimeSlot
-from models.models import ReportType
+
+# إضافة المسار إلى نظام Python
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
+try:
+    from src.core.load_manager import LoadSheddingManager
+    from src.models.models import TimeSlot, ReportType
+    print("✓ تم تحميل المكتبات بنجاح")
+except ImportError as e:
+    print(f"❌ خطأ في تحميل المكتبات: {e}")
+    print("🔍 جاري التحقق من الملفات...")
+    
+    # التحقق من وجود الملفات
+    files_to_check = [
+        'src/__init__.py',
+        'src/core/__init__.py', 
+        'src/core/load_manager.py',
+        'src/models/__init__.py',
+        'src/models/models.py'
+    ]
+    
+    for file in files_to_check:
+        if os.path.exists(file):
+            print(f"✅ موجود: {file}")
+        else:
+            print(f"❌ مفقود: {file}")
+    
+    sys.exit(1)
 
 def main():
+    print("🚀 بدء تشغيل نظام إدارة الأحمال...")
     manager = LoadSheddingManager()
     
     while True:
@@ -19,27 +48,33 @@ def main():
         print("6. حفظ البيانات")
         print("7. خروج")
         
-        choice = input("\nاختر الخيار: ").strip()
-        
-        if choice == '1':
-            calculate_shedding_plan(manager)
-        elif choice == '2':
-            show_line_stats(manager)
-        elif choice == '3':
-            show_reports_menu(manager)
-        elif choice == '4':
-            set_line_capacity(manager)
-        elif choice == '5':
-            toggle_line_status(manager)
-        elif choice == '6':
-            manager.save_data('data/load_data.json')
-            print("✓ تم حفظ البيانات")
-        elif choice == '7':
-            manager.save_data('data/load_data.json')
-            print("✓ تم حفظ البيانات والخروج")
+        try:
+            choice = input("\nاختر الخيار: ").strip()
+            
+            if choice == '1':
+                calculate_shedding_plan(manager)
+            elif choice == '2':
+                show_line_stats(manager)
+            elif choice == '3':
+                show_reports_menu(manager)
+            elif choice == '4':
+                set_line_capacity(manager)
+            elif choice == '5':
+                toggle_line_status(manager)
+            elif choice == '6':
+                manager.save_data('data/load_data.json')
+                print("✓ تم حفظ البيانات")
+            elif choice == '7':
+                manager.save_data('data/load_data.json')
+                print("✓ تم حفظ البيانات والخروج")
+                break
+            else:
+                print("❌ خيار غير صحيح")
+        except KeyboardInterrupt:
+            print("\n\n⚠️ تم إيقاف البرنامج بواسطة المستخدم")
             break
-        else:
-            print("❌ خيار غير صحيح")
+        except Exception as e:
+            print(f"❌ حدث خطأ: {e}")
 
 def calculate_shedding_plan(manager):
     """حساب خطة التخفيف"""
@@ -78,6 +113,8 @@ def calculate_shedding_plan(manager):
         
     except ValueError as e:
         print(f"❌ خطأ في الإدخال: {e}")
+    except Exception as e:
+        print(f"❌ خطأ غير متوقع: {e}")
 
 def show_line_stats(manager):
     """عرض إحصائيات الخط"""
@@ -99,6 +136,8 @@ def show_line_stats(manager):
             print("❌ رقم الخط يجب أن يكون بين 1 و 20")
     except ValueError:
         print("❌ أدخل رقم صحيح")
+    except Exception as e:
+        print(f"❌ خطأ غير متوقع: {e}")
 
 def show_reports_menu(manager):
     """قائمة التقارير"""
@@ -113,22 +152,25 @@ def show_reports_menu(manager):
         print("5. تصدير التقرير إلى ملف")
         print("6. العودة للقائمة الرئيسية")
         
-        choice = input("\nاختر نوع التقرير: ").strip()
-        
-        if choice == '1':
-            generate_daily_report(manager)
-        elif choice == '2':
-            generate_weekly_report(manager)
-        elif choice == '3':
-            generate_monthly_report(manager)
-        elif choice == '4':
-            generate_custom_report(manager)
-        elif choice == '5':
-            export_report_to_file(manager)
-        elif choice == '6':
-            break
-        else:
-            print("❌ خيار غير صحيح")
+        try:
+            choice = input("\nاختر نوع التقرير: ").strip()
+            
+            if choice == '1':
+                generate_daily_report(manager)
+            elif choice == '2':
+                generate_weekly_report(manager)
+            elif choice == '3':
+                generate_monthly_report(manager)
+            elif choice == '4':
+                generate_custom_report(manager)
+            elif choice == '5':
+                export_report_to_file_menu(manager)
+            elif choice == '6':
+                break
+            else:
+                print("❌ خيار غير صحيح")
+        except Exception as e:
+            print(f"❌ خطأ: {e}")
 
 def generate_daily_report(manager):
     """تقرير يومي"""
@@ -144,6 +186,8 @@ def generate_daily_report(manager):
         
     except ValueError as e:
         print(f"❌ خطأ في التاريخ: {e}")
+    except Exception as e:
+        print(f"❌ خطأ في إنشاء التقرير: {e}")
 
 def generate_weekly_report(manager):
     """تقرير أسبوعي"""
@@ -159,28 +203,25 @@ def generate_weekly_report(manager):
         
     except ValueError as e:
         print(f"❌ خطأ في التاريخ: {e}")
+    except Exception as e:
+        print(f"❌ خطأ في إنشاء التقرير: {e}")
 
 def generate_monthly_report(manager):
     """تقرير شهري"""
     try:
-        month = input("أدخل الشهر (1-12) أو اتركه فارغاً للشهر الحالي: ").strip()
-        year = input("أدخل السنة أو اتركه فارغاً للسنة الحالية: ").strip()
+        month_input = input("أدخل الشهر (1-12) أو اتركه فارغاً للشهر الحالي: ").strip()
+        year_input = input("أدخل السنة أو اتركه فارغاً للسنة الحالية: ").strip()
         
-        if month:
-            month = int(month)
-        else:
-            month = date.today().month
-            
-        if year:
-            year = int(year)
-        else:
-            year = date.today().year
+        month = int(month_input) if month_input else date.today().month
+        year = int(year_input) if year_input else date.today().year
         
         report = manager.generate_monthly_report(month, year)
         display_report(report)
         
     except ValueError as e:
         print(f"❌ خطأ في الإدخال: {e}")
+    except Exception as e:
+        print(f"❌ خطأ في إنشاء التقرير: {e}")
 
 def generate_custom_report(manager):
     """تقرير لفترة مخصصة"""
@@ -197,70 +238,82 @@ def generate_custom_report(manager):
         
     except ValueError as e:
         print(f"❌ خطأ في التاريخ: {e}")
+    except Exception as e:
+        print(f"❌ خطأ في إنشاء التقرير: {e}")
 
 def display_report(report):
     """عرض التقرير"""
-    print(f"\n{'='*60}")
-    print(f"📈 تقرير {report.report_type.value}")
-    print(f"📅 الفترة: {report.start_date} إلى {report.end_date}")
-    print(f"{'='*60}")
-    
-    print(f"\n📊 الإحصائيات العامة:")
-    print(f"• إجمالي ساعات الفصل: {report.total_hours} ساعة")
-    print(f"• إجمالي الحمل المخفف: {report.total_reduction} MW")
-    print(f"• متوسط الساعات اليومية: {round(report.total_hours / max(1, (report.end_date - report.start_date).days + 1), 2)} ساعة")
-    
-    print(f"\n👥 إحصائيات المجموعات:")
-    for group_id, stats in report.group_statistics.items():
-        group_name = "المجموعة 1 (صباحي)" if group_id == 0 else "المجموعة 2 (مسائي)"
-        print(f"  {group_name}:")
-        print(f"    • ساعات الفصل: {stats['total_hours']} ساعة")
-        print(f"    • الحمل المخفف: {stats['total_reduction']} MW")
-        print(f"    • متوسط لكل خط: {stats['average_per_line']} ساعة")
-    
-    print(f"\n📋 إحصائيات الخطوط (الـ 5 الأكثر فصلًا):")
-    # ترتيب الخطوط حسب ساعات الفصل
-    sorted_lines = sorted(
-        report.line_statistics.items(),
-        key=lambda x: x[1]['total_hours'],
-        reverse=True
-    )[:5]
-    
-    for line_id, stats in sorted_lines:
-        if stats['total_hours'] > 0:
-            print(f"  الخط {line_id:2d} ({stats['line_name']}):")
+    try:
+        print(f"\n{'='*60}")
+        print(f"📈 تقرير {report.report_type.value}")
+        print(f"📅 الفترة: {report.start_date} إلى {report.end_date}")
+        print(f"{'='*60}")
+        
+        print(f"\n📊 الإحصائيات العامة:")
+        print(f"• إجمالي ساعات الفصل: {report.total_hours} ساعة")
+        print(f"• إجمالي الحمل المخفف: {report.total_reduction} MW")
+        
+        days_count = (report.end_date - report.start_date).days + 1
+        print(f"• متوسط الساعات اليومية: {round(report.total_hours / max(1, days_count), 2)} ساعة")
+        
+        print(f"\n👥 إحصائيات المجموعات:")
+        for group_id, stats in report.group_statistics.items():
+            group_name = "المجموعة 1 (صباحي)" if group_id == 0 else "المجموعة 2 (مسائي)"
+            print(f"  {group_name}:")
             print(f"    • ساعات الفصل: {stats['total_hours']} ساعة")
-            print(f"    • عدد مرات الفصل: {stats['shedding_count']} مرة")
-            print(f"    • متوسط مدة الفصل: {stats['average_duration']} ساعة")
-    
-    print(f"\n📅 التفصيل اليومي:")
-    for day, day_stats in report.daily_breakdown.items():
-        if day_stats['total_hours'] > 0:
-            print(f"  {day}: {day_stats['total_hours']} ساعة - {day_stats['total_reduction']} MW")
+            print(f"    • الحمل المخفف: {stats['total_reduction']} MW")
+            print(f"    • متوسط لكل خط: {stats['average_per_line']} ساعة")
+        
+        print(f"\n📋 إحصائيات الخطوط (الـ 5 الأكثر فصلًا):")
+        # ترتيب الخطوط حسب ساعات الفصل
+        sorted_lines = sorted(
+            report.line_statistics.items(),
+            key=lambda x: x[1]['total_hours'],
+            reverse=True
+        )[:5]
+        
+        for line_id, stats in sorted_lines:
+            if stats['total_hours'] > 0:
+                print(f"  الخط {line_id:2d} ({stats['line_name']}):")
+                print(f"    • ساعات الفصل: {stats['total_hours']} ساعة")
+                print(f"    • عدد مرات الفصل: {stats['shedding_count']} مرة")
+                print(f"    • متوسط مدة الفصل: {stats['average_duration']} ساعة")
+        
+        print(f"\n📅 التفصيل اليومي:")
+        for day, day_stats in sorted(report.daily_breakdown.items()):
+            if day_stats['total_hours'] > 0:
+                print(f"  {day}: {day_stats['total_hours']} ساعة - {day_stats['total_reduction']} MW")
+                
+    except Exception as e:
+        print(f"❌ خطأ في عرض التقرير: {e}")
 
-def export_report_to_file(manager):
+def export_report_to_file_menu(manager):
     """تصدير التقرير إلى ملف"""
     try:
         print("\n📤 تصدير التقرير إلى ملف")
-        print("1. تصدير تقرير موجود")
-        print("2. إنشاء وتصدير تقرير جديد")
+        start_date = date.fromisoformat(input("أدخل تاريخ البداية (YYYY-MM-DD): ").strip())
+        end_date = date.fromisoformat(input("أدخل تاريخ النهاية (YYYY-MM-DD): ").strip())
         
-        choice = input("اختر الخيار: ").strip()
-        
-        if choice == '1':
-            print("⚠️ هذه الخاصية تحتاج لتطوير إضافي")
-        elif choice == '2':
-            start_date = date.fromisoformat(input("أدخل تاريخ البداية (YYYY-MM-DD): ").strip())
-            end_date = date.fromisoformat(input("أدخل تاريخ النهاية (YYYY-MM-DD): ").strip())
-            
-            report = manager.generate_period_report(start_date, end_date)
-            filename = manager.export_report_to_file(report)
-            print(f"✅ تم تصدير التقرير إلى: {filename}")
-        else:
-            print("❌ خيار غير صحيح")
+        report = manager.generate_period_report(start_date, end_date)
+        filename = manager.export_report_to_file(report)
+        print(f"✅ تم تصدير التقرير إلى: {filename}")
             
     except Exception as e:
         print(f"❌ خطأ في التصدير: {e}")
+
+def set_line_capacity(manager):
+    """تعيين سعة الخط"""
+    try:
+        line_id = int(input("أدخل رقم الخط (1-20): "))
+        capacity = float(input("أدخل السعة (MW): "))
+        
+        manager.set_line_capacity(line_id, capacity)
+        print(f"✓ تم تعيين سعة الخط {line_id} إلى {capacity} MW")
+        
+    except ValueError:
+        print("❌ أدخل أرقام صحيحة")
+    except Exception as e:
+        print(f"❌ خطأ غير متوقع: {e}")
 
 def toggle_line_status(manager):
     """تفعيل/تعطيل خط"""
@@ -275,6 +328,8 @@ def toggle_line_status(manager):
         
     except ValueError:
         print("❌ أدخل رقم صحيح")
+    except Exception as e:
+        print(f"❌ خطأ غير متوقع: {e}")
 
 if __name__ == "__main__":
     main()
