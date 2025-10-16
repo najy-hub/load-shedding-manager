@@ -106,37 +106,167 @@ def show_line_stats(manager):
     except ValueError:
         print("❌ أدخل رقم صحيح")
 
-def show_monthly_report(manager):
-    """عرض التقرير الشهري"""
-    try:
-        month = int(input("أدخل الشهر (1-12): "))
-        year = int(input("أدخل السنة: "))
+def show_reports_menu(manager):
+    """قائمة التقارير"""
+    while True:
+        print("\n" + "="*50)
+        print("📊 نظام التقارير المتقدم")
+        print("="*50)
+        print("1. تقرير يومي")
+        print("2. تقرير أسبوعي")
+        print("3. تقرير شهري")
+        print("4. تقرير لفترة مخصصة")
+        print("5. تصدير التقرير إلى ملف")
+        print("6. العودة للقائمة الرئيسية")
         
-        report = manager.get_monthly_report(month, year)
+        choice = input("\nاختر نوع التقرير: ").strip()
         
-        print(f"\n📈 التقرير الشهري لـ {month}/{year}:")
-        print(f"• إجمالي ساعات الفصل: {report['total_hours']} ساعة")
-        print(f"• متوسط الساعات لكل خط: {report['average_per_line']} ساعة")
-        
-        print("\n• ساعات الفصل لكل خط:")
-        for line_id, hours in report['line_hours'].items():
-            if hours > 0:
-                print(f"  الخط {line_id:2d}: {hours:6.2f} ساعة")
-                
-    except ValueError:
-        print("❌ أدخل أرقام صحيحة")
+        if choice == '1':
+            generate_daily_report(manager)
+        elif choice == '2':
+            generate_weekly_report(manager)
+        elif choice == '3':
+            generate_monthly_report(manager)
+        elif choice == '4':
+            generate_custom_report(manager)
+        elif choice == '5':
+            export_report_to_file(manager)
+        elif choice == '6':
+            break
+        else:
+            print("❌ خيار غير صحيح")
 
-def set_line_capacity(manager):
-    """تعيين سعة الخط"""
+def generate_daily_report(manager):
+    """تقرير يومي"""
     try:
-        line_id = int(input("أدخل رقم الخط (1-20): "))
-        capacity = float(input("أدخل السعة (MW): "))
+        date_input = input("أدخل التاريخ (YYYY-MM-DD) أو اتركه فارغاً لليوم: ").strip()
+        if date_input:
+            target_date = date.fromisoformat(date_input)
+        else:
+            target_date = date.today()
         
-        manager.set_line_capacity(line_id, capacity)
-        print(f"✓ تم تعيين سعة الخط {line_id} إلى {capacity} MW")
+        report = manager.generate_daily_report(target_date)
+        display_report(report)
         
-    except ValueError:
-        print("❌ أدخل أرقام صحيحة")
+    except ValueError as e:
+        print(f"❌ خطأ في التاريخ: {e}")
+
+def generate_weekly_report(manager):
+    """تقرير أسبوعي"""
+    try:
+        date_input = input("أدخل تاريخ في الأسبوع المطلوب (YYYY-MM-DD) أو اتركه فارغاً للأسبوع الحالي: ").strip()
+        if date_input:
+            target_date = date.fromisoformat(date_input)
+        else:
+            target_date = date.today()
+        
+        report = manager.generate_weekly_report(target_date)
+        display_report(report)
+        
+    except ValueError as e:
+        print(f"❌ خطأ في التاريخ: {e}")
+
+def generate_monthly_report(manager):
+    """تقرير شهري"""
+    try:
+        month = input("أدخل الشهر (1-12) أو اتركه فارغاً للشهر الحالي: ").strip()
+        year = input("أدخل السنة أو اتركه فارغاً للسنة الحالية: ").strip()
+        
+        if month:
+            month = int(month)
+        else:
+            month = date.today().month
+            
+        if year:
+            year = int(year)
+        else:
+            year = date.today().year
+        
+        report = manager.generate_monthly_report(month, year)
+        display_report(report)
+        
+    except ValueError as e:
+        print(f"❌ خطأ في الإدخال: {e}")
+
+def generate_custom_report(manager):
+    """تقرير لفترة مخصصة"""
+    try:
+        start_date = date.fromisoformat(input("أدخل تاريخ البداية (YYYY-MM-DD): ").strip())
+        end_date = date.fromisoformat(input("أدخل تاريخ النهاية (YYYY-MM-DD): ").strip())
+        
+        if start_date > end_date:
+            print("❌ تاريخ البداية يجب أن يكون قبل تاريخ النهاية")
+            return
+        
+        report = manager.generate_period_report(start_date, end_date)
+        display_report(report)
+        
+    except ValueError as e:
+        print(f"❌ خطأ في التاريخ: {e}")
+
+def display_report(report):
+    """عرض التقرير"""
+    print(f"\n{'='*60}")
+    print(f"📈 تقرير {report.report_type.value}")
+    print(f"📅 الفترة: {report.start_date} إلى {report.end_date}")
+    print(f"{'='*60}")
+    
+    print(f"\n📊 الإحصائيات العامة:")
+    print(f"• إجمالي ساعات الفصل: {report.total_hours} ساعة")
+    print(f"• إجمالي الحمل المخفف: {report.total_reduction} MW")
+    print(f"• متوسط الساعات اليومية: {round(report.total_hours / max(1, (report.end_date - report.start_date).days + 1), 2)} ساعة")
+    
+    print(f"\n👥 إحصائيات المجموعات:")
+    for group_id, stats in report.group_statistics.items():
+        group_name = "المجموعة 1 (صباحي)" if group_id == 0 else "المجموعة 2 (مسائي)"
+        print(f"  {group_name}:")
+        print(f"    • ساعات الفصل: {stats['total_hours']} ساعة")
+        print(f"    • الحمل المخفف: {stats['total_reduction']} MW")
+        print(f"    • متوسط لكل خط: {stats['average_per_line']} ساعة")
+    
+    print(f"\n📋 إحصائيات الخطوط (الـ 5 الأكثر فصلًا):")
+    # ترتيب الخطوط حسب ساعات الفصل
+    sorted_lines = sorted(
+        report.line_statistics.items(),
+        key=lambda x: x[1]['total_hours'],
+        reverse=True
+    )[:5]
+    
+    for line_id, stats in sorted_lines:
+        if stats['total_hours'] > 0:
+            print(f"  الخط {line_id:2d} ({stats['line_name']}):")
+            print(f"    • ساعات الفصل: {stats['total_hours']} ساعة")
+            print(f"    • عدد مرات الفصل: {stats['shedding_count']} مرة")
+            print(f"    • متوسط مدة الفصل: {stats['average_duration']} ساعة")
+    
+    print(f"\n📅 التفصيل اليومي:")
+    for day, day_stats in report.daily_breakdown.items():
+        if day_stats['total_hours'] > 0:
+            print(f"  {day}: {day_stats['total_hours']} ساعة - {day_stats['total_reduction']} MW")
+
+def export_report_to_file(manager):
+    """تصدير التقرير إلى ملف"""
+    try:
+        print("\n📤 تصدير التقرير إلى ملف")
+        print("1. تصدير تقرير موجود")
+        print("2. إنشاء وتصدير تقرير جديد")
+        
+        choice = input("اختر الخيار: ").strip()
+        
+        if choice == '1':
+            print("⚠️ هذه الخاصية تحتاج لتطوير إضافي")
+        elif choice == '2':
+            start_date = date.fromisoformat(input("أدخل تاريخ البداية (YYYY-MM-DD): ").strip())
+            end_date = date.fromisoformat(input("أدخل تاريخ النهاية (YYYY-MM-DD): ").strip())
+            
+            report = manager.generate_period_report(start_date, end_date)
+            filename = manager.export_report_to_file(report)
+            print(f"✅ تم تصدير التقرير إلى: {filename}")
+        else:
+            print("❌ خيار غير صحيح")
+            
+    except Exception as e:
+        print(f"❌ خطأ في التصدير: {e}")
 
 def toggle_line_status(manager):
     """تفعيل/تعطيل خط"""
