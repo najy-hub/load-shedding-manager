@@ -2,16 +2,10 @@ import json
 from datetime import datetime, date
 from src.core.load_manager import LoadSheddingManager
 from src.models.models import TimeSlot
+from models.models import ReportType
 
 def main():
     manager = LoadSheddingManager()
-    
-    # محاولة تحميل البيانات السابقة
-    try:
-        manager.load_data('data/load_data.json')
-        print("✓ تم تحميل البيانات السابقة")
-    except:
-        print("✓ بدء نظام جديد")
     
     while True:
         print("\n" + "="*50)
@@ -19,7 +13,7 @@ def main():
         print("="*50)
         print("1. حساب خطة التخفيف")
         print("2. عرض إحصائيات الخط")
-        print("3. تقرير شهري")
+        print("3. التقارير المتقدمة")
         print("4. تعيين سعة الخط")
         print("5. تفعيل/تعطيل خط")
         print("6. حفظ البيانات")
@@ -32,7 +26,7 @@ def main():
         elif choice == '2':
             show_line_stats(manager)
         elif choice == '3':
-            show_monthly_report(manager)
+            show_reports_menu(manager)
         elif choice == '4':
             set_line_capacity(manager)
         elif choice == '5':
